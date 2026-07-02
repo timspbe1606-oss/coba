@@ -19,6 +19,8 @@ streamlit_app_code = '''
 import streamlit as st
 import pandas as pd
 import openpyxl
+from fpdf import FPDF # Added for PDF generation
+import base64 # Added for encoding PDF for download
 
 # Load the data - crucial for the Streamlit app to be standalone
 # Assuming the Excel file will be placed alongside app.py or accessible via path
@@ -99,36 +101,97 @@ else:
     st.info("Map cannot be displayed due to missing, invalid, or non-numeric location data in the filtered dataset.")
 
 st.subheader("Detailed Data Table")
-# st.dataframe(filtered_df)
-
 
 # Select and rename columns for display in the table
-display_columns = {
+# Note: st.data_editor can take a dataframe directly and use column_config
+# We will use the original column names for st.data_editor and then configure them
+# using column_config
+display_columns_map = {
     'nmkec': 'Kecamatan',
     'nmdesa': 'Desa',
     'nmsls': 'SLS',
     'Nama Tempat': 'Nama Tempat',
     'Alamat': 'Alamat',
     'Kontak/No HP': 'Kontak/No HP',
-    'URL': 'URL'
+    'URL': 'URL' # Keep URL for column config
 }
 
 # Filter for existing columns to avoid KeyError if a column is missing
-existing_display_columns = {col: new_name for col, new_name in display_columns.items() if col in filtered_df.columns}
+existing_display_cols_for_data_editor = [col for col in display_columns_map.keys() if col in filtered_df.columns]
+display_df_for_editor = filtered_df[existing_display_cols_for_data_editor].rename(columns=display_columns_map)
 
-if existing_display_columns:
-    display_df = filtered_df[list(existing_display_columns.keys())].rename(columns=existing_display_columns)
-    st.dataframe(display_df)
+# Define column configuration for st.data_editor
+column_config_dict = {}
+if 'URL' in existing_display_cols_for_data_editor:
+    column_config_dict['URL'] = st.column_config.LinkColumn(
+        "URL Link", # Display name
+        help="Click to open the URL",
+        max_chars=100, # Optional: truncate long URLs
+        display_text="Open Link" # Text to display for the link
+    )
+
+if not display_df_for_editor.empty:
+    st.data_editor(
+        display_df_for_editor,
+        column_config=column_config_dict,
+        hide_index=True,
+        use_container_width=True
+    )
 else:
-    st.warning("No display columns found in the filtered data. Showing all available columns.")
-    st.dataframe(filtered_df)
-    
+    st.warning("No data to display in the detailed table after filtering.")
+
+
+# --- PDF Download Functionality ---
+def create_pdf_from_dataframe(df_to_pdf):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=10)
+
+    # Add title
+    pdf.cell(200, 10, txt="Usaha Online Musi Banyuasin Data", ln=True, align='C')
+    pdf.ln(10) # Line break
+
+    # Add column headers
+    # Adjust column widths dynamically, or define fixed widths if content varies greatly
+    # A simple approach for now, assuming content fits
+    col_names = df_to_pdf.columns.tolist()
+    if col_names:
+        # Calculate cell width based on page width and number of columns
+        # A padding of 20 units is assumed for the left and right margins
+        available_width = pdf.w - 2 * pdf.l_margin
+        col_width = available_width / len(col_names)
+
+        for header in col_names:
+            pdf.cell(col_width, 10, str(header), border=1, align='C')
+        pdf.ln()
+
+        # Add data rows
+        for index, row in df_to_pdf.iterrows():
+            for col_data in row:
+                pdf.cell(col_width, 10, str(col_data), border=1, align='L')
+            pdf.ln()
+    else:
+        pdf.cell(200, 10, "No data available.", ln=True, align='C')
+
+    return pdf.output(dest='S').encode('latin-1') # Return as bytes
+
+if not filtered_df.empty:
+    pdf_output = create_pdf_from_dataframe(filtered_df)
+    st.download_button(
+        label="Download Filtered Data as PDF",
+        data=pdf_output,
+        file_name="filtered_data.pdf",
+        mime="application/pdf",
+        key="download_pdf_button"
+    )
+else:
+    st.info("No data available to download as PDF.")
 
 st.markdown("---")
 st.caption("Developed with Streamlit for Usaha Online Musi Banyuasin")
 '''
 
-with open('app.py', 'w') as f:
+with open('app (1).py', 'w') as f:
     f.write(streamlit_app_code)
 
-print("Streamlit app saved to 'app.py' successfully.")
+print("Streamlit app saved to 'app (1).py' successfully.")
