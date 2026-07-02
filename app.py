@@ -19,7 +19,6 @@ streamlit_app_code = '''
 import streamlit as st
 import pandas as pd
 import openpyxl
-from fpdf import FPDF # This now refers to fpdf2 if installed
 
 # Load the data - crucial for the Streamlit app to be standalone
 try:
@@ -122,49 +121,6 @@ if not display_df_for_editor.empty:
 else:
     st.warning("No data to display in the detailed table after filtering.")
 
-
-# --- PDF Download Functionality (using fpdf2 for better Unicode support) ---
-def create_pdf_from_dataframe(df_to_pdf):
-    pdf = FPDF()
-    pdf.add_page()
-    # Set font for fpdf2. Arial and Helvetica often have good basic Unicode coverage.
-    # For full Unicode support, consider adding a specific TTF font like 'DejaVuSans'.
-    pdf.set_font("Arial", size=10)
-
-    pdf.cell(200, 10, txt="Usaha Online Musi Banyuasin Data", ln=True, align='C')
-    pdf.ln(10)
-
-    col_names = df_to_pdf.columns.tolist()
-    if col_names:
-        available_width = pdf.w - 2 * pdf.l_margin
-        col_width = available_width / len(col_names)
-
-        for header in col_names:
-            # fpdf2 handles Unicode strings directly, no need for encode/decode trick
-            pdf.cell(col_width, 10, str(header), border=1, align='C')
-        pdf.ln()
-
-        for index, row in df_to_pdf.iterrows():
-            for col_data in row:
-                pdf.cell(col_width, 10, str(col_data), border=1, align='L')
-            pdf.ln()
-    else:
-        pdf.cell(200, 10, "No data available.", ln=True, align='C')
-
-    return pdf.output(dest='S')
-
-if not filtered_df.empty:
-    pdf_output = create_pdf_from_dataframe(filtered_df)
-    st.download_button(
-        label="Download Filtered Data as PDF",
-        data=pdf_output,
-        file_name="filtered_data.pdf",
-        mime="application/pdf",
-        key="download_pdf_button"
-    )
-else:
-    st.info("No data available to download as PDF.")
-
 st.markdown("---")
 st.caption("Developed with Streamlit for Usaha Online Musi Banyuasin")
 '''
@@ -172,4 +128,4 @@ st.caption("Developed with Streamlit for Usaha Online Musi Banyuasin")
 with open('app.py', 'w', encoding='utf-8') as f:
     f.write(streamlit_app_code)
 
-print("Streamlit app saved to 'app.py' successfully with fpdf2 compatibility.")
+print("Streamlit app saved to 'app.py' successfully.")
